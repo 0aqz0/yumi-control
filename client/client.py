@@ -18,6 +18,8 @@ yumi_left_upper_limits = np.array([ 2.94, 0.75, 2.94, 1.39, 5.06, 2.40, 3.99])
 yumi_right_lower_limits = np.array([-2.94, -2.50, -2.94, -2.15, -5.06, -1.53, -3.99])
 yumi_right_upper_limits = np.array([ 2.94, 0.75, 2.94, 1.39, 5.06, 2.40, 3.99])
 
+# error threshold
+threshold = 3
 
 """
 create sensor message with specific joint angles
@@ -70,6 +72,20 @@ def switch_joint_angle(joint_angle):
     switch_angle[:, 5] = joint_angle[:, 6]
     return switch_angle
 
+"""
+parse received data
+"""
+def parse_data(data):
+    pRobotMessage = egm_pb2.EgmRobot()
+    pRobotMessage.ParseFromString(data)
+    if pRobotMessage.HasField('header') and pRobotMessage.header.HasField('seqno') and pRobotMessage.header.HasField('tm') and pRobotMessage.header.HasField('mtype'):
+        # print("SeqNo={} Tm={} Type={}".format(pRobotMessage.header.seqno, pRobotMessage.header.tm, pRobotMessage.header.mtype))
+        # print(pRobotMessage.feedBack.joints.joints, pRobotMessage.feedBack.externalJoints.joints)
+        joints = np.array(list(pRobotMessage.feedBack.joints.joints) + list(pRobotMessage.feedBack.externalJoints.joints))
+    else:
+        print("No header")
+    return joints
+
 if __name__ == '__main__':
     # socket for left arm
     sock_L = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -88,26 +104,26 @@ if __name__ == '__main__':
     while True:
         # left arm
         data_L, server_L = sock_L.recvfrom(1024) # buffer size is 1024 bytes
-        print("received message from ", server_L)
-        # pRobotMessage = egm_pb2.EgmRobot()
-        # pRobotMessage.ParseFromString(data)
-        # if pRobotMessage.HasField('header') and pRobotMessage.header.HasField('seqno') and pRobotMessage.header.HasField('tm') and pRobotMessage.header.HasField('mtype'):
-        #     print("SeqNo={} Tm={} Type={}".format(pRobotMessage.header.seqno, pRobotMessage.header.tm, pRobotMessage.header.mtype))
-        #     print(pRobotMessage.feedBack.joints.joints, pRobotMessage.feedBack.externalJoints.joints)
-        # else:
-        #     print("No header")
+        # print("received message from ", server_L)
         jointAngles_L = l_joint_angles[t]  # [-30, -90, 0, 0, 0, 0, 60]
         pSensorMessage = createSensorMsg(jointAngles_L)
         sock_L.sendto(pSensorMessage.SerializeToString(), server_L)
 
         # right arm
         data_R, server_R = sock_R.recvfrom(1024) # buffer size is 1024 bytes
-        print("received message from ", server_R)
+        # print("received message from ", server_R)
         jointAngles_R = r_joint_angles[t]  # [30, -90, 0, 0, 0, 0, -60]
         pSensorMessage = createSensorMsg(jointAngles_R)
         sock_R.sendto(pSensorMessage.SerializeToString(), server_R)
 
         time.sleep(0.2)
-        t += 1
-        if t == total_frames:
-            t = 0
+        # check if motion is done
+        current_l_joints = parse_data(data_L)
+        current_r_joints = parse_data(data_R)
+        error = np.concatenate([current_l_joints, current_r_joints]) - np.concatenate([jointAngles_L, jointAngles_R])
+        done = (error < threshold).any()
+        print('t', t, 'done', done, 'angles', np.concatenate([current_l_joints, current_r_joints]))
+        if done:
+            t += 1
+            if t == total_frames:
+                t = 0
