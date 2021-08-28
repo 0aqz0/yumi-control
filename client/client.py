@@ -100,30 +100,42 @@ if __name__ == '__main__':
     r_joint_angles = switch_joint_angle(rad2degree(clamp_to_limits(r_joint_angles, yumi_right_lower_limits, yumi_right_upper_limits)))
     total_frames = len(l_joint_angles)
     t = 0
+    done = False
+    last_command_time = -float('Inf')
+    last_verbose_time = -float('Inf')
 
     while True:
-        # left arm
-        data_L, server_L = sock_L.recvfrom(1024) # buffer size is 1024 bytes
-        # print("received message from ", server_L)
-        jointAngles_L = l_joint_angles[t]  # [-30, -90, 0, 0, 0, 0, 60]
-        pSensorMessage = createSensorMsg(jointAngles_L)
-        sock_L.sendto(pSensorMessage.SerializeToString(), server_L)
+        # receive data
+        try:
+            # left arm
+            data_L, server_L = sock_L.recvfrom(1024) # buffer size is 1024 bytes
+            # right arm
+            data_R, server_R = sock_R.recvfrom(1024) # buffer size is 1024 bytes
+        except:
+            pass
 
-        # right arm
-        data_R, server_R = sock_R.recvfrom(1024) # buffer size is 1024 bytes
-        # print("received message from ", server_R)
-        jointAngles_R = r_joint_angles[t]  # [30, -90, 0, 0, 0, 0, -60]
-        pSensorMessage = createSensorMsg(jointAngles_R)
-        sock_R.sendto(pSensorMessage.SerializeToString(), server_R)
-
-        time.sleep(0.2)
         # check if motion is done
         current_l_joints = parse_data(data_L)
         current_r_joints = parse_data(data_R)
-        error = np.concatenate([current_l_joints, current_r_joints]) - np.concatenate([jointAngles_L, jointAngles_R])
-        done = (error < threshold).any()
-        print('t', t, 'done', done, 'angles', np.concatenate([current_l_joints, current_r_joints]))
+        error = np.concatenate([current_l_joints, current_r_joints]) - np.concatenate([l_joint_angles[t], r_joint_angles[t]])
+        done = (error < threshold).all()
+        if time.time() - last_verbose_time > 0.5:
+            print('t', t, 'done', done)
+            print('current angles', np.concatenate([current_l_joints, current_r_joints]))
+            print('target angles', np.concatenate([l_joint_angles[t], r_joint_angles[t]]))
+            last_verbose_time = time.time()
+
+        # next frame
         if done:
             t += 1
             if t == total_frames:
                 t = 0
+        # send control command not too fast
+        elif time.time() - last_command_time > 0.005:
+            # left arm
+            pSensorMessage = createSensorMsg(l_joint_angles[t])
+            sock_L.sendto(pSensorMessage.SerializeToString(), server_L)
+            # right arm
+            pSensorMessage = createSensorMsg(r_joint_angles[t])
+            sock_R.sendto(pSensorMessage.SerializeToString(), server_R)
+            last_command_time = time.time()
