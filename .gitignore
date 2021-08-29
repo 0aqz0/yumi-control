@@ -130,3 +130,6 @@ dmypy.json
 
 # vscode
 .vscode/
+
+# data folder
+h5_data/
