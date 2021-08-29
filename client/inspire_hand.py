@@ -29,8 +29,8 @@ def num2str(num):
     str = str[2:4]
     if(len(str) == 1):
         str = '0'+ str
-    # str = bytes.fromhex(str)  
-    str = str.decode('hex')   
+    str = bytes.fromhex(str)  
+    # str = str.decode('hex')   
     return str
 
 #求校验和
