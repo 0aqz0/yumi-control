@@ -2,7 +2,7 @@ MODULE SERVER_R
 VAR egmident egmID1;
 VAR egmstate egmSt1;
 CONST egm_minmax egm_minmax1:=[-1,1];
-PERS tooldata gripper := [ TRUE, [[0, 0, 100], [0, 0, 0, 1]], [0.5, [0, 0, 100], [0, 0, 0, 1], 0, 0, 0 ]]; 
+PERS tooldata gripper := [ TRUE, [[0, 0, 100], [0, 0, 0, 1]], [1.5, [0, 0, 100], [0, 0, 0, 1], 0, 0, 0 ]];
 PROC main()
 testuc;
 ENDPROC
@@ -14,7 +14,7 @@ TPWrite "EGM state: "\Num:=egmSt1;
 IF egmSt1 <= EGM_STATE_CONNECTED THEN
 EGMSetupUC ROB_R, egmID1, "default", "EGM_R:" \Joint\ CommTimeout:=100;
 ENDIF
-EGMActJoint egmID1, \Tool:=gripper \J1:=egm_minmax1 \J2:=egm_minmax1 \J3:=egm_minmax1 \J4:=egm_minmax1 \J5:=egm_minmax1 \J6:=egm_minmax1 \J7:=egm_minmax1 \MaxSpeedDeviation:=5;
-EGMRunJoint egmID1, EGM_STOP_HOLD \J1 \J2 \J3 \J4 \J5 \J6 \J7 \RampInTime:=0.05 \PosCorrGain:=1.0;
+EGMActJoint egmID1, \Tool:=gripper \J1:=egm_minmax1 \J2:=egm_minmax1 \J3:=egm_minmax1 \J4:=egm_minmax1 \J5:=egm_minmax1 \J6:=egm_minmax1 \J7:=egm_minmax1 \MaxSpeedDeviation:=4;
+EGMRunJoint egmID1, EGM_STOP_HOLD \J1 \J2 \J3 \J4 \J5 \J6 \J7 \RampInTime:=0.01 \PosCorrGain:=1.0;
 ENDPROC
 ENDMODULE
