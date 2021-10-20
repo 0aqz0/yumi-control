@@ -1,13 +1,10 @@
-#encoding=utf-8
-import sys
-sys.path.append("..")
 from inspire_hand import InspireHand
-from math import sin, pi
 import time
 import numpy as np
 import threading
 import h5py
 import argparse
+
 
 class HandControlThread(threading.Thread):
     def __init__(self,threadID,hand_controller,glove_angle_traj,time_interval):
@@ -20,23 +17,12 @@ class HandControlThread(threading.Thread):
     def run(self):
         hand_execute(self.hand_controller, self.glove_angle_traj, self.time_interval)#,self.threadID)
 
-def hand_execute(hand_controller,glove_angle_traj,time_interval): #,id):
-    ## Sine movement for testing purpose
-    # t = np.linspace(0,1000,5000)
-    # L = len(t)
-    # for i in range(L):
-    #     x = int(500*sin(2*pi*t[i]/500)+500)
-    #     hand_controller.setpos(x,x,x,x,x,x)
-    #     time.sleep(0.002)
 
+def hand_execute(hand_controller,glove_angle_traj,time_interval):
     exec_angle_traj = convert_optim_ang_exec_ang(glove_angle_traj)
     nData = len(exec_angle_traj)
     for i in range(nData):
-        exec_angle = exec_angle_traj[i] #[2000,2000,2000,2000,2000,2000] #
-        # if id == 0:
-        #     print("left pinky:{}".format(exec_angle[0]))
-        # else:
-        #     print("right pinky:{}".format(exec_angle[0]))
+        exec_angle = exec_angle_traj[i]
         hand_controller.setpos(exec_angle[0],exec_angle[1],exec_angle[2],exec_angle[3],exec_angle[4],exec_angle[5])
         time.sleep(time_interval)
 
@@ -48,7 +34,7 @@ def convert_optim_ang_exec_ang(optim_angles):
     elec_signal = np.zeros((ndata, 6), dtype="int32")
     optim_fourfin_range = [0, -1.6]
     optim_thumbroll_range = [0.1, 0.0]
-    optim_thumbrot_range = [-1.0, 0.3] #[0.3, -1.0] # actually fixed at intermediate position when we still use S14 glove, since it doesn't measure this axis of motion
+    optim_thumbrot_range = [-1.0, 0.3]
     max_elec = 2000
     min_elec = 0
 
@@ -72,38 +58,27 @@ def convert_optim_ang_exec_ang(optim_angles):
 
     return elec_signal
 
-def hack_glove_angles(glove_angles):
-    glove_angles[:,9] = 0.02
-    return glove_angles
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c","--control_mode",type=int,default=3)
-    parser.add_argument("-i","--input_h5_file",type=str,default='../h5_data/optim_trajs_for_demo_real_robot/mocap_ik_results_YuMi_g2o_similarity.h5')
-    parser.add_argument("-g","--group_name",type=str,default='fengren_1')#'kai_3')
-    parser.add_argument("-v","--speed",type=float,default=100)
-    parser.add_argument("-hl","--hand_length",type=int,default=500)
-
+    parser.add_argument("-i","--input_h5_file",type=str,default='./h5_data/inference.h5')
+    parser.add_argument("-g","--group_name",type=str,default='group1')
+    parser.add_argument("-d","--delta_time",type=float,default=0.2)
     args = parser.parse_args()
 
-    # hand_len = 500
     f = h5py.File(args.input_h5_file,'r')
     l_glove_angles = f[args.group_name+'/l_glove_angle_2'][:]
     r_glove_angles = f[args.group_name+'/r_glove_angle_2'][:] 
-    # l_glove_angles = hack_glove_angles(l_glove_angles)
-    # r_glove_angles = hack_glove_angles(r_glove_angles)
 
-    left_hand_controller = InspireHand('/dev/ttyUSB1',115200)
-    right_hand_controller = InspireHand('/dev/ttyUSB0',115200)
-    # left_hand_controller.setspeed(500,500,500,500,500,500)
-    # right_hand_controller.setspeed(500,500,500,500,500,500)
-    left_hand_controller.setspeed(1000,1000,1000,1000,1000,1000)
-    right_hand_controller.setspeed(1000,1000,1000,1000,1000,1000)
+    left_hand_controller = InspireHand('COM12', 115200)
+    right_hand_controller = InspireHand('COM13', 115200)
+    left_hand_controller.setspeed(1000, 1000, 1000, 1000, 1000, 1000)
+    right_hand_controller.setspeed(1000, 1000, 1000, 1000, 1000, 1000)
 
     # 初始化灵巧手控制线程
-    delta_time = 0.03
-    left_hand_control_thread = HandControlThread(0,left_hand_controller,l_glove_angles,delta_time)
-    right_hand_control_thread = HandControlThread(1,right_hand_controller,r_glove_angles,delta_time)
+    delta_time = 0.3
+    left_hand_control_thread = HandControlThread(0, left_hand_controller, l_glove_angles, delta_time)
+    right_hand_control_thread = HandControlThread(1, right_hand_controller, r_glove_angles, delta_time)
 
     # 开启灵巧手控制线程
     left_hand_control_thread.start()
@@ -119,7 +94,3 @@ if __name__=="__main__":
         t.join()
 
     print("Done!")
-
-    # left_hand_controller.setpos(1000,1000,1000,1000,1000,1000)
-    # time.sleep(1)
-    # left_hand_controller.setpos(0,0,0,0,0,0)
