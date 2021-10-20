@@ -17,3 +17,7 @@ EGM control for ABB's collaborative robot YuMi
 $ python client/client.py
 ```
 
+## Reference
+
+- [Application manual Externally Guided Motion]()
+
